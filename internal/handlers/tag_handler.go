@@ -1,13 +1,27 @@
 package handlers
 
-import "github.com/labstack/echo/v5"
+import (
+	"net/http"
 
-type TagHandler struct{}
+	"github.com/labstack/echo/v5"
 
-func NewTagHandler() *TagHandler {
-	return &TagHandler{}
+	"realworldapp/internal/dto"
+	"realworldapp/internal/services"
+)
+
+type TagHandler struct {
+	tagService services.TagService
+}
+
+func NewTagHandler(tagService services.TagService) *TagHandler {
+	return &TagHandler{tagService: tagService}
 }
 
 func (h *TagHandler) List(c *echo.Context) error {
-	return nil
+	tags, err := h.tagService.List(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+	}
+
+	return c.JSON(http.StatusOK, dto.NewTagListResponse(tags))
 }

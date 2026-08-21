@@ -9,6 +9,7 @@ type Article struct {
 	Description string    `gorm:"type:text;not null" json:"description"`
 	Body        string    `gorm:"type:text;not null" json:"body"`
 	AuthorID    uint      `gorm:"not null;index" json:"-"`
+	Tags        []Tag     `gorm:"many2many:article_tags" json:"tagList,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }

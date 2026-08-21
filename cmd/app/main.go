@@ -6,6 +6,8 @@ import (
 
 	"realworldapp/config"
 	"realworldapp/internal/handlers"
+	"realworldapp/internal/repositories"
+	"realworldapp/internal/services"
 	database "realworldapp/pkg/db"
 )
 
@@ -28,7 +30,11 @@ func main() {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
-	handlers.RegisterRoutes(e)
+	articleRepository := repositories.NewArticleRepository(db)
+	tagRepository := repositories.NewTagRepository(db)
+	articleService := services.NewArticleService(articleRepository, tagRepository, db)
+	tagService := services.NewTagService(tagRepository)
+	handlers.RegisterRoutes(e, articleService, tagService)
 
 	if err := e.Start(cfg.HTTPAddr); err != nil {
 		e.Logger.Error("failed to start server", "error", err)

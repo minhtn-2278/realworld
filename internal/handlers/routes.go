@@ -1,13 +1,17 @@
 package handlers
 
-import "github.com/labstack/echo/v5"
+import (
+	"github.com/labstack/echo/v5"
 
-func RegisterRoutes(e *echo.Echo) {
+	"realworldapp/internal/services"
+)
+
+func RegisterRoutes(e *echo.Echo, articleService services.ArticleService, tagService services.TagService) {
 	api := e.Group("/api")
 
 	registerUserRoutes(api, NewUserHandler())
-	registerArticleRoutes(api, NewArticleHandler())
-	registerTagRoutes(api, NewTagHandler())
+	registerArticleRoutes(api, NewArticleHandler(articleService))
+	registerTagRoutes(api, NewTagHandler(tagService))
 }
 
 func registerUserRoutes(api *echo.Group, handler *UserHandler) {
@@ -17,7 +21,11 @@ func registerUserRoutes(api *echo.Group, handler *UserHandler) {
 
 func registerArticleRoutes(api *echo.Group, handler *ArticleHandler) {
 	articles := api.Group("/articles")
+	articles.GET("", handler.List)
+	articles.GET("/:slug", handler.GetBySlug)
 	articles.POST("", handler.Create)
+	articles.PUT("/:slug", handler.Update)
+	articles.DELETE("/:slug", handler.Delete)
 }
 
 func registerTagRoutes(api *echo.Group, handler *TagHandler) {

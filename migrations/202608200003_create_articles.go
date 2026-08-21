@@ -9,7 +9,7 @@ func migrationCreateArticles() *gormigrate.Migration {
 	return &gormigrate.Migration{
 		ID: "202608200003",
 		Migrate: func(tx *gorm.DB) error {
-			if err := tx.Exec(`
+			return tx.Exec(`
 				CREATE TABLE IF NOT EXISTS articles (
 					id BIGSERIAL PRIMARY KEY,
 					slug VARCHAR(255) NOT NULL,
@@ -19,14 +19,9 @@ func migrationCreateArticles() *gormigrate.Migration {
 					author_id BIGINT NOT NULL,
 					created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 					updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					CONSTRAINT uq_articles_slug UNIQUE (slug),
-					CONSTRAINT fk_articles_author FOREIGN KEY (author_id)
-						REFERENCES users (id) ON UPDATE CASCADE ON DELETE CASCADE
+					CONSTRAINT uq_articles_slug UNIQUE (slug)
 				)
-			`).Error; err != nil {
-				return err
-			}
-			return tx.Exec(`CREATE INDEX IF NOT EXISTS idx_articles_author_id ON articles (author_id)`).Error
+			`).Error
 		},
 		Rollback: func(tx *gorm.DB) error {
 			return tx.Exec(`DROP TABLE IF EXISTS articles`).Error
