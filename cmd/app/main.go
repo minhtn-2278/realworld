@@ -22,19 +22,24 @@ func main() {
 		panic(err)
 	}
 
-	// Keep the database connection available for repositories and handlers.
-	_ = db
-
 	e := echo.New()
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
+	// Repositories
 	articleRepository := repositories.NewArticleRepository(db)
+	commentRepository := repositories.NewCommentRepository(db)
 	tagRepository := repositories.NewTagRepository(db)
-	articleService := services.NewArticleService(articleRepository, tagRepository, db)
+	userRepository := repositories.NewUserRepository(db)
+
+	// Services
+	articleService := services.NewArticleService(articleRepository, commentRepository, tagRepository, userRepository, db)
 	tagService := services.NewTagService(tagRepository)
-	handlers.RegisterRoutes(e, articleService, tagService)
+	userService := services.NewUserService(userRepository)
+
+	// Handlers
+	handlers.RegisterRoutes(e, articleService, tagService, userService)
 
 	if err := e.Start(cfg.HTTPAddr); err != nil {
 		e.Logger.Error("failed to start server", "error", err)

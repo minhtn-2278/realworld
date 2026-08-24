@@ -17,6 +17,8 @@ type ArticleService interface {
 	List(ctx context.Context) ([]models.Article, error)
 	Update(ctx context.Context, slug string, input UpdateArticleInput) (*models.Article, error)
 	Delete(ctx context.Context, slug string) error
+	ListComments(ctx context.Context, slug string) ([]models.Comment, error)
+	CreateComment(ctx context.Context, slug string, body string, authorID uint) (*models.Comment, error)
 }
 
 type CreateArticleInput struct {
@@ -36,18 +38,24 @@ type UpdateArticleInput struct {
 
 type articleService struct {
 	articleRepository repositories.ArticleRepository
+	commentRepository repositories.CommentRepository
 	tagRepository     repositories.TagRepository
+	userRepository    repositories.UserRepository
 	db                *gorm.DB
 }
 
 func NewArticleService(
 	articleRepository repositories.ArticleRepository,
+	commentRepository repositories.CommentRepository,
 	tagRepository repositories.TagRepository,
+	userRepository repositories.UserRepository,
 	db *gorm.DB,
 ) ArticleService {
 	return &articleService{
 		articleRepository: articleRepository,
+		commentRepository: commentRepository,
 		tagRepository:     tagRepository,
+		userRepository:    userRepository,
 		db:                db,
 	}
 }
@@ -116,6 +124,39 @@ func (s *articleService) Update(ctx context.Context, slug string, input UpdateAr
 
 func (s *articleService) Delete(ctx context.Context, slug string) error {
 	return s.articleRepository.DeleteBySlug(ctx, slug)
+}
+
+func (s *articleService) ListComments(ctx context.Context, slug string) ([]models.Comment, error) {
+	article, err := s.articleRepository.FindBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.commentRepository.ListByArticleID(ctx, article.ID)
+}
+
+func (s *articleService) CreateComment(ctx context.Context, slug string, body string, authorID uint) (*models.Comment, error) {
+	article, err := s.articleRepository.FindBySlug(ctx, slug)
+	if err != nil {
+		return nil, err
+	}
+
+	author, err := s.userRepository.FindByID(ctx, authorID)
+	if err != nil {
+		return nil, err
+	}
+
+	comment := &models.Comment{
+		Body:      body,
+		ArticleID: article.ID,
+		AuthorID:  author.ID,
+	}
+	if err := s.commentRepository.Create(ctx, comment); err != nil {
+		return nil, err
+	}
+	comment.Author = *author
+
+	return comment, nil
 }
 
 func slugify(value string) string {

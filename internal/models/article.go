@@ -3,13 +3,17 @@ package models
 import "time"
 
 type Article struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Slug        string    `gorm:"size:255;not null;uniqueIndex" json:"slug"`
-	Title       string    `gorm:"size:255;not null" json:"title"`
-	Description string    `gorm:"type:text;not null" json:"description"`
-	Body        string    `gorm:"type:text;not null" json:"body"`
-	AuthorID    uint      `gorm:"not null;index" json:"-"`
-	Tags        []Tag     `gorm:"many2many:article_tags" json:"tagList,omitempty"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	Slug        string `gorm:"size:255;not null;uniqueIndex" json:"slug"`
+	Title       string `gorm:"size:255;not null" json:"title"`
+	Description string `gorm:"type:text;not null" json:"description"`
+	Body        string `gorm:"type:text;not null" json:"body"`
+	AuthorID    uint   `gorm:"not null;index" json:"-"`
+
+	Author   User      `gorm:"foreignKey:AuthorID" json:"author"`
+	Tags     []Tag     `gorm:"many2many:article_tags" json:"tagList,omitempty"`
+	Comments []Comment `gorm:"foreignKey:ArticleID" json:"comments,omitempty"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

@@ -90,6 +90,34 @@ func (h *ArticleHandler) Delete(c *echo.Context) error {
 	return c.JSON(http.StatusOK, dto.MessageResponse{Message: "ok"})
 }
 
+func (h *ArticleHandler) ListComments(c *echo.Context) error {
+	comments, err := h.articleService.ListComments(c.Request().Context(), c.Param("slug"))
+	if err != nil {
+		return serviceError(err)
+	}
+
+	return c.JSON(http.StatusOK, dto.NewCommentListResponse(comments))
+}
+
+func (h *ArticleHandler) CreateComment(c *echo.Context) error {
+	var request dto.CreateCommentRequest
+	if err := bindAndValidate(c, &request); err != nil {
+		return err
+	}
+
+	comment, err := h.articleService.CreateComment(
+		c.Request().Context(),
+		c.Param("slug"),
+		request.Body,
+		request.AuthorID,
+	)
+	if err != nil {
+		return serviceError(err)
+	}
+
+	return c.JSON(http.StatusCreated, dto.NewCommentResponse(comment))
+}
+
 func serviceError(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return echo.NewHTTPError(http.StatusNotFound, "resource not found")

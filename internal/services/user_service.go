@@ -9,6 +9,7 @@ import (
 
 type UserService interface {
 	Create(ctx context.Context, user *models.User) error
+	GetProfile(ctx context.Context, username string) (*models.User, error)
 }
 
 type userService struct {
@@ -23,4 +24,8 @@ func NewUserService(userRepository repositories.UserRepository) UserService {
 
 func (s *userService) Create(ctx context.Context, user *models.User) error {
 	return nil
+}
+
+func (s *userService) GetProfile(ctx context.Context, username string) (*models.User, error) {
+	return s.userRepository.FindByUsername(ctx, username)
 }
