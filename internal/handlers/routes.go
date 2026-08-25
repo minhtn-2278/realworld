@@ -11,29 +11,32 @@ func RegisterRoutes(
 	articleService services.ArticleService,
 	tagService services.TagService,
 	userService services.UserService,
+	authMiddleware echo.MiddlewareFunc,
 ) {
 	api := e.Group("/api")
 
-	registerUserRoutes(api, NewUserHandler(userService))
-	registerArticleRoutes(api, NewArticleHandler(articleService))
+	registerUserRoutes(api, NewUserHandler(userService), authMiddleware)
+	registerArticleRoutes(api, NewArticleHandler(articleService), authMiddleware)
 	registerTagRoutes(api, NewTagHandler(tagService))
 }
 
-func registerUserRoutes(api *echo.Group, handler *UserHandler) {
+func registerUserRoutes(api *echo.Group, handler *UserHandler, authMiddleware echo.MiddlewareFunc) {
 	users := api.Group("/users")
+	users.POST("/login", handler.Login)
 	users.POST("", handler.Create)
-	api.GET("/profiles/:username", handler.Profile)
+	api.GET("/user", handler.Current, authMiddleware)
+	api.GET("/profiles/:username", handler.Profile, authMiddleware)
 }
 
-func registerArticleRoutes(api *echo.Group, handler *ArticleHandler) {
+func registerArticleRoutes(api *echo.Group, handler *ArticleHandler, authMiddleware echo.MiddlewareFunc) {
 	articles := api.Group("/articles")
 	articles.GET("/:slug/comments", handler.ListComments)
-	articles.POST("/:slug/comments", handler.CreateComment)
+	articles.POST("/:slug/comments", handler.CreateComment, authMiddleware)
 	articles.GET("", handler.List)
 	articles.GET("/:slug", handler.GetBySlug)
-	articles.POST("", handler.Create)
-	articles.PUT("/:slug", handler.Update)
-	articles.DELETE("/:slug", handler.Delete)
+	articles.POST("", handler.Create, authMiddleware)
+	articles.PUT("/:slug", handler.Update, authMiddleware)
+	articles.DELETE("/:slug", handler.Delete, authMiddleware)
 }
 
 func registerTagRoutes(api *echo.Group, handler *TagHandler) {

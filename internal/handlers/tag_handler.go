@@ -20,7 +20,7 @@ func NewTagHandler(tagService services.TagService) *TagHandler {
 func (h *TagHandler) List(c *echo.Context) error {
 	tags, err := h.tagService.List(c.Request().Context())
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
+		return apiError(http.StatusInternalServerError, "internal server error")
 	}
 
 	return c.JSON(http.StatusOK, dto.NewTagListResponse(tags))

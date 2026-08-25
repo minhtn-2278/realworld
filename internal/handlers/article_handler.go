@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
-	"gorm.io/gorm"
 
 	"realworldapp/internal/dto"
 	"realworldapp/internal/services"
@@ -116,12 +114,4 @@ func (h *ArticleHandler) CreateComment(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, dto.NewCommentResponse(comment))
-}
-
-func serviceError(err error) error {
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return echo.NewHTTPError(http.StatusNotFound, "resource not found")
-	}
-
-	return echo.NewHTTPError(http.StatusInternalServerError, "internal server error")
 }

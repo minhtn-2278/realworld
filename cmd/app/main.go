@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/labstack/echo-jwt/v5"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 
@@ -23,6 +24,7 @@ func main() {
 	}
 
 	e := echo.New()
+	e.HTTPErrorHandler = handlers.HTTPErrorHandler
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
@@ -36,10 +38,17 @@ func main() {
 	// Services
 	articleService := services.NewArticleService(articleRepository, commentRepository, tagRepository, userRepository, db)
 	tagService := services.NewTagService(tagRepository)
-	userService := services.NewUserService(userRepository)
+	userService := services.NewUserService(userRepository, cfg.JWTSecret)
+
+	// Middleware
+	authMiddleware := echojwt.WithConfig(echojwt.Config{
+		SigningKey:    []byte(cfg.JWTSecret),
+		SigningMethod: echojwt.AlgorithmHS256,
+		ErrorHandler:  handlers.JWTErrorHandler,
+	})
 
 	// Handlers
-	handlers.RegisterRoutes(e, articleService, tagService, userService)
+	handlers.RegisterRoutes(e, articleService, tagService, userService, authMiddleware)
 
 	if err := e.Start(cfg.HTTPAddr); err != nil {
 		e.Logger.Error("failed to start server", "error", err)
