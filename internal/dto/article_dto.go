@@ -10,7 +10,6 @@ type CreateArticleRequest struct {
 	Title       string   `json:"title" validate:"required,max=255"`
 	Description string   `json:"description" validate:"required"`
 	Body        string   `json:"body" validate:"required"`
-	AuthorID    uint     `json:"authorId" validate:"required"`
 	TagList     []string `json:"tagList,omitempty" validate:"dive,max=100"`
 }
 

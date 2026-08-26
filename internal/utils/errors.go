@@ -1,4 +1,4 @@
-package handlers
+package utils
 
 import (
 	"encoding/json"
@@ -8,6 +8,8 @@ import (
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
+
+var ErrInvalidCredentials = errors.New("invalid email or password")
 
 type ValidationFieldError struct {
 	Field   string `json:"field"`
@@ -51,16 +53,16 @@ func (e APIErrorResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(jsonAPIErrorResponse(e))
 }
 
-func apiError(statusCode int, message string) APIErrorResponse {
+func APIError(statusCode int, message string) APIErrorResponse {
 	return APIErrorResponse{ErrorCode: statusCode, ErrorMessage: message}
 }
 
-func serviceError(err error) error {
+func ServiceError(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return apiError(http.StatusNotFound, "resource not found")
+		return APIError(http.StatusNotFound, "resource not found")
 	}
 
-	return apiError(http.StatusInternalServerError, "internal server error")
+	return APIError(http.StatusInternalServerError, "internal server error")
 }
 
 func HTTPErrorHandler(c *echo.Context, err error) {
@@ -88,7 +90,7 @@ func HTTPErrorHandler(c *echo.Context, err error) {
 		message = httpError.Message
 	}
 
-	if writeErr := c.JSON(statusCode, apiError(statusCode, message)); writeErr != nil {
+	if writeErr := c.JSON(statusCode, APIError(statusCode, message)); writeErr != nil {
 		c.Logger().Error("failed to write API error response", "error", writeErr)
 	}
 }

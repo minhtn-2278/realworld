@@ -6,7 +6,9 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"realworldapp/internal/dto"
+	appmiddleware "realworldapp/internal/middleware"
 	"realworldapp/internal/services"
+	"realworldapp/internal/utils"
 )
 
 type ArticleHandler struct {
@@ -19,7 +21,11 @@ func NewArticleHandler(articleService services.ArticleService) *ArticleHandler {
 
 func (h *ArticleHandler) Create(c *echo.Context) error {
 	var request dto.CreateArticleRequest
-	if err := bindAndValidate(c, &request); err != nil {
+	if err := utils.BindAndValidate(c, &request); err != nil {
+		return err
+	}
+	authorID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
 		return err
 	}
 
@@ -27,11 +33,11 @@ func (h *ArticleHandler) Create(c *echo.Context) error {
 		Title:       request.Title,
 		Description: request.Description,
 		Body:        request.Body,
-		AuthorID:    request.AuthorID,
+		AuthorID:    authorID,
 		TagList:     request.TagList,
 	})
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusCreated, dto.ArticleResponseEnvelope{
@@ -42,7 +48,7 @@ func (h *ArticleHandler) Create(c *echo.Context) error {
 func (h *ArticleHandler) List(c *echo.Context) error {
 	articles, err := h.articleService.List(c.Request().Context())
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.NewArticleListResponse(articles))
@@ -51,7 +57,7 @@ func (h *ArticleHandler) List(c *echo.Context) error {
 func (h *ArticleHandler) GetBySlug(c *echo.Context) error {
 	article, err := h.articleService.GetBySlug(c.Request().Context(), c.Param("slug"))
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.ArticleResponseEnvelope{
@@ -61,18 +67,27 @@ func (h *ArticleHandler) GetBySlug(c *echo.Context) error {
 
 func (h *ArticleHandler) Update(c *echo.Context) error {
 	var request dto.UpdateArticleRequest
-	if err := bindAndValidate(c, &request); err != nil {
+	if err := utils.BindAndValidate(c, &request); err != nil {
+		return err
+	}
+	authorID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
 		return err
 	}
 
-	article, err := h.articleService.Update(c.Request().Context(), c.Param("slug"), services.UpdateArticleInput{
-		Title:       request.Title,
-		Description: request.Description,
-		Body:        request.Body,
-		TagList:     request.TagList,
-	})
+	article, err := h.articleService.Update(
+		c.Request().Context(),
+		c.Param("slug"),
+		authorID,
+		services.UpdateArticleInput{
+			Title:       request.Title,
+			Description: request.Description,
+			Body:        request.Body,
+			TagList:     request.TagList,
+		},
+	)
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.ArticleResponseEnvelope{
@@ -82,7 +97,7 @@ func (h *ArticleHandler) Update(c *echo.Context) error {
 
 func (h *ArticleHandler) Delete(c *echo.Context) error {
 	if err := h.articleService.Delete(c.Request().Context(), c.Param("slug")); err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.MessageResponse{Message: "ok"})
@@ -91,7 +106,7 @@ func (h *ArticleHandler) Delete(c *echo.Context) error {
 func (h *ArticleHandler) ListComments(c *echo.Context) error {
 	comments, err := h.articleService.ListComments(c.Request().Context(), c.Param("slug"))
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.NewCommentListResponse(comments))
@@ -99,7 +114,11 @@ func (h *ArticleHandler) ListComments(c *echo.Context) error {
 
 func (h *ArticleHandler) CreateComment(c *echo.Context) error {
 	var request dto.CreateCommentRequest
-	if err := bindAndValidate(c, &request); err != nil {
+	if err := utils.BindAndValidate(c, &request); err != nil {
+		return err
+	}
+	authorID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
 		return err
 	}
 
@@ -107,10 +126,10 @@ func (h *ArticleHandler) CreateComment(c *echo.Context) error {
 		c.Request().Context(),
 		c.Param("slug"),
 		request.Body,
-		request.AuthorID,
+		authorID,
 	)
 	if err != nil {
-		return serviceError(err)
+		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusCreated, dto.NewCommentResponse(comment))

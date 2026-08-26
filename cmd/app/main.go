@@ -7,8 +7,10 @@ import (
 
 	"realworldapp/config"
 	"realworldapp/internal/handlers"
+	appmiddleware "realworldapp/internal/middleware"
 	"realworldapp/internal/repositories"
 	"realworldapp/internal/services"
+	"realworldapp/internal/utils"
 	database "realworldapp/pkg/db"
 )
 
@@ -24,7 +26,7 @@ func main() {
 	}
 
 	e := echo.New()
-	e.HTTPErrorHandler = handlers.HTTPErrorHandler
+	e.HTTPErrorHandler = utils.HTTPErrorHandler
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
@@ -44,7 +46,7 @@ func main() {
 	authMiddleware := echojwt.WithConfig(echojwt.Config{
 		SigningKey:    []byte(cfg.JWTSecret),
 		SigningMethod: echojwt.AlgorithmHS256,
-		ErrorHandler:  handlers.JWTErrorHandler,
+		ErrorHandler:  appmiddleware.JWTErrorHandler,
 	})
 
 	// Handlers

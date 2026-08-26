@@ -1,4 +1,4 @@
-package handlers
+package utils
 
 import (
 	"errors"
@@ -12,9 +12,9 @@ import (
 
 var requestValidator = validator.New(validator.WithRequiredStructEnabled())
 
-func bindAndValidate(c *echo.Context, request any) error {
+func BindAndValidate(c *echo.Context, request any) error {
 	if err := c.Bind(request); err != nil {
-		return apiError(http.StatusBadRequest, "invalid request body")
+		return APIError(http.StatusBadRequest, "invalid request body")
 	}
 
 	if err := requestValidator.Struct(request); err != nil {
@@ -23,7 +23,7 @@ func bindAndValidate(c *echo.Context, request any) error {
 			return newValidationError(request, validationErrors)
 		}
 
-		return apiError(http.StatusBadRequest, "request validation failed")
+		return APIError(http.StatusBadRequest, "request validation failed")
 	}
 
 	return nil

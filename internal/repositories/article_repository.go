@@ -12,7 +12,7 @@ type ArticleRepository interface {
 	Create(ctx context.Context, article *models.Article) error
 	FindBySlug(ctx context.Context, slug string) (*models.Article, error)
 	List(ctx context.Context) ([]models.Article, error)
-	UpdateBySlug(ctx context.Context, slug string, article *models.Article) (*models.Article, error)
+	UpdateBySlug(ctx context.Context, slug string, authorID uint, article *models.Article) (*models.Article, error)
 	ReplaceTags(ctx context.Context, article *models.Article, tags []models.Tag) error
 	DeleteBySlug(ctx context.Context, slug string) error
 }
@@ -53,9 +53,11 @@ func (r *articleRepository) List(ctx context.Context) ([]models.Article, error) 
 	return articles, nil
 }
 
-func (r *articleRepository) UpdateBySlug(ctx context.Context, slug string, updates *models.Article) (*models.Article, error) {
-	article, err := r.FindBySlug(ctx, slug)
-	if err != nil {
+func (r *articleRepository) UpdateBySlug(ctx context.Context, slug string, authorID uint, updates *models.Article) (*models.Article, error) {
+	var article models.Article
+	if err := r.db.WithContext(ctx).
+		Where("slug = ? AND author_id = ?", slug, authorID).
+		First(&article).Error; err != nil {
 		return nil, err
 	}
 

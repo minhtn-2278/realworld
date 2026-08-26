@@ -13,6 +13,7 @@ import (
 
 	"realworldapp/internal/models"
 	"realworldapp/internal/repositories"
+	"realworldapp/internal/utils"
 )
 
 type RegisterUserInput struct {
@@ -90,7 +91,7 @@ func (s *userService) GetByID(ctx context.Context, id uint) (*models.User, error
 
 func (s *userService) Login(ctx context.Context, input LoginUserInput) (*LoginUserResult, error) {
 	if input.Username == "" {
-		return nil, ErrInvalidCredentials
+		return nil, utils.ErrInvalidCredentials
 	}
 
 	user, err := s.userRepository.FindByUsername(ctx, input.Username)
@@ -98,11 +99,11 @@ func (s *userService) Login(ctx context.Context, input LoginUserInput) (*LoginUs
 		user, err = s.userRepository.FindByEmail(ctx, input.Username)
 	}
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, utils.ErrInvalidCredentials
 	}
 
 	if !VerifyPassword(input.Password, user.PasswordHash) {
-		return nil, ErrInvalidCredentials
+		return nil, utils.ErrInvalidCredentials
 	}
 
 	accessToken, err := s.signToken(user, "access", accessTokenTTL)

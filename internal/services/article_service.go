@@ -15,7 +15,7 @@ type ArticleService interface {
 	Create(ctx context.Context, input CreateArticleInput) (*models.Article, error)
 	GetBySlug(ctx context.Context, slug string) (*models.Article, error)
 	List(ctx context.Context) ([]models.Article, error)
-	Update(ctx context.Context, slug string, input UpdateArticleInput) (*models.Article, error)
+	Update(ctx context.Context, slug string, authorID uint, input UpdateArticleInput) (*models.Article, error)
 	Delete(ctx context.Context, slug string) error
 	ListComments(ctx context.Context, slug string) ([]models.Comment, error)
 	CreateComment(ctx context.Context, slug string, body string, authorID uint) (*models.Comment, error)
@@ -89,12 +89,12 @@ func (s *articleService) List(ctx context.Context) ([]models.Article, error) {
 	return s.articleRepository.List(ctx)
 }
 
-func (s *articleService) Update(ctx context.Context, slug string, input UpdateArticleInput) (updated *models.Article, err error) {
+func (s *articleService) Update(ctx context.Context, slug string, authorID uint, input UpdateArticleInput) (updated *models.Article, err error) {
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		articleRepository := repositories.NewArticleRepository(tx)
 		tagRepository := repositories.NewTagRepository(tx)
 
-		article, err := articleRepository.UpdateBySlug(ctx, slug, &models.Article{
+		article, err := articleRepository.UpdateBySlug(ctx, slug, authorID, &models.Article{
 			Slug:        slugify(input.Title),
 			Title:       input.Title,
 			Description: input.Description,
