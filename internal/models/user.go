@@ -13,6 +13,10 @@ type User struct {
 	Articles []Article `gorm:"foreignKey:AuthorID" json:"articles,omitempty"`
 	Comments []Comment `gorm:"foreignKey:AuthorID" json:"comments,omitempty"`
 
+	Following      bool  `gorm:"-" json:"-"`
+	FollowersCount int64 `gorm:"-" json:"-"`
+	FollowingCount int64 `gorm:"-" json:"-"`
+
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }

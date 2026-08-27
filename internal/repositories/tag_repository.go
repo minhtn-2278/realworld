@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"realworldapp/internal/models"
 )
@@ -32,9 +33,44 @@ func (r *tagRepository) List(ctx context.Context) ([]models.Tag, error) {
 }
 
 func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string) ([]models.Tag, error) {
-	tags := make([]models.Tag, 0, len(names))
-	seen := make(map[string]struct{}, len(names))
+	unique := normalizeTagNames(names)
+	if len(unique) == 0 {
+		return []models.Tag{}, nil
+	}
 
+	toInsert := make([]models.Tag, 0, len(unique))
+	for _, name := range unique {
+		toInsert = append(toInsert, models.Tag{Name: name})
+	}
+
+	if err := r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&toInsert).Error; err != nil {
+		return nil, err
+	}
+
+	var found []models.Tag
+	if err := r.db.WithContext(ctx).Where("name IN ?", unique).Find(&found).Error; err != nil {
+		return nil, err
+	}
+
+	byName := make(map[string]models.Tag, len(found))
+	for _, tag := range found {
+		byName[tag.Name] = tag
+	}
+	tags := make([]models.Tag, 0, len(unique))
+	for _, name := range unique {
+		if tag, ok := byName[name]; ok {
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags, nil
+}
+
+func normalizeTagNames(names []string) []string {
+	seen := make(map[string]struct{}, len(names))
+	unique := make([]string, 0, len(names))
 	for _, name := range names {
 		name = strings.TrimSpace(name)
 		if name == "" {
@@ -44,13 +80,8 @@ func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string)
 			continue
 		}
 		seen[name] = struct{}{}
-
-		var tag models.Tag
-		if err := r.db.WithContext(ctx).Where("name = ?", name).FirstOrCreate(&tag, models.Tag{Name: name}).Error; err != nil {
-			return nil, err
-		}
-		tags = append(tags, tag)
+		unique = append(unique, name)
 	}
 
-	return tags, nil
+	return unique
 }

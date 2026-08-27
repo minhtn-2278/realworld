@@ -58,12 +58,34 @@ func (h *UserHandler) Login(c *echo.Context) error {
 }
 
 func (h *UserHandler) Profile(c *echo.Context) error {
-	user, err := h.userService.GetProfile(c.Request().Context(), c.Param("username"))
+	viewerID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	user, err := h.userService.GetProfileForUser(c.Request().Context(), c.Param("username"), viewerID)
 	if err != nil {
 		return utils.ServiceError(err)
 	}
 
 	return c.JSON(http.StatusOK, dto.NewUserResponse(user))
+}
+
+func (h *UserHandler) Follow(c *echo.Context) error {
+	var request dto.FollowUserRequest
+	if err := utils.BindAndValidate(c, &request); err != nil {
+		return err
+	}
+	followerID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.userService.Follow(c.Request().Context(), c.Param("username"), followerID, *request.Follow); err != nil {
+		return utils.ServiceError(err)
+	}
+
+	return c.JSON(http.StatusOK, dto.MessageResponse{Message: "ok"})
 }
 
 func (h *UserHandler) Current(c *echo.Context) error {
@@ -77,5 +99,5 @@ func (h *UserHandler) Current(c *echo.Context) error {
 		return utils.ServiceError(err)
 	}
 
-	return c.JSON(http.StatusOK, dto.NewUserResponse(user))
+	return c.JSON(http.StatusOK, dto.NewCurrentUserResponse(user))
 }

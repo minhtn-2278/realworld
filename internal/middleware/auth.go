@@ -13,7 +13,6 @@ import (
 	"realworldapp/internal/utils"
 )
 
-// JWTErrorHandler converts JWT middleware errors to the API error format.
 func JWTErrorHandler(_ *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, echojwt.ErrJWTMissing):
@@ -25,7 +24,6 @@ func JWTErrorHandler(_ *echo.Context, err error) error {
 	}
 }
 
-// CurrentUsername returns the username from the current access token.
 func CurrentUsername(c *echo.Context) (string, error) {
 	claims, err := currentAccessTokenClaims(c)
 	if err != nil {
@@ -40,7 +38,6 @@ func CurrentUsername(c *echo.Context) (string, error) {
 	return username, nil
 }
 
-// CurrentUserID returns the user ID from the subject of the current access token.
 func CurrentUserID(c *echo.Context) (uint, error) {
 	claims, err := currentAccessTokenClaims(c)
 	if err != nil {

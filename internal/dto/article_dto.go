@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"realworldapp/internal/models"
+	"realworldapp/internal/utils"
 )
 
 type CreateArticleRequest struct {
@@ -18,6 +19,10 @@ type UpdateArticleRequest struct {
 	Description string   `json:"description" validate:"required"`
 	Body        string   `json:"body" validate:"required"`
 	TagList     []string `json:"tagList,omitempty" validate:"dive,max=100"`
+}
+
+type FavoriteArticleRequest struct {
+	Favorite *bool `json:"favorite" validate:"required"`
 }
 
 type ArticleResponse struct {
@@ -35,8 +40,24 @@ type ArticleResponseEnvelope struct {
 	Article ArticleResponse `json:"article"`
 }
 
+type ArticleDetailResponse struct {
+	ArticleResponse
+	FavoritesCount int64             `json:"favoritesCount"`
+	Comments       []CommentResponse `json:"comments"`
+}
+
+type ArticleDetailResponseEnvelope struct {
+	Article ArticleDetailResponse `json:"article"`
+}
+
 type ArticleListResponse struct {
-	Articles []ArticleResponse `json:"articles"`
+	Articles []ArticleListItemResponse `json:"articles"`
+	Meta     utils.PaginationMeta      `json:"meta"`
+}
+
+type ArticleListItemResponse struct {
+	ArticleResponse
+	FavoritesCount int64 `json:"favoritesCount"`
 }
 
 func NewArticleResponse(article *models.Article) ArticleResponse {
@@ -57,11 +78,30 @@ func NewArticleResponse(article *models.Article) ArticleResponse {
 	}
 }
 
-func NewArticleListResponse(articles []models.Article) ArticleListResponse {
-	items := make([]ArticleResponse, 0, len(articles))
+func NewArticleDetailResponse(
+	article *models.Article,
+	comments []models.Comment,
+	favoritesCount int64,
+) ArticleDetailResponse {
+	return ArticleDetailResponse{
+		ArticleResponse: NewArticleResponse(article),
+		FavoritesCount:  favoritesCount,
+		Comments:        newCommentResponses(comments),
+	}
+}
+
+func NewArticleListResponse(
+	articles []models.Article,
+	favoriteCounts map[uint]int64,
+	meta utils.PaginationMeta,
+) ArticleListResponse {
+	items := make([]ArticleListItemResponse, 0, len(articles))
 	for index := range articles {
-		items = append(items, NewArticleResponse(&articles[index]))
+		items = append(items, ArticleListItemResponse{
+			ArticleResponse: NewArticleResponse(&articles[index]),
+			FavoritesCount:  favoriteCounts[articles[index].ID],
+		})
 	}
 
-	return ArticleListResponse{Articles: items}
+	return ArticleListResponse{Articles: items, Meta: meta}
 }

@@ -30,6 +30,7 @@ func New(db *gorm.DB) *gormigrate.Gormigrate {
 			migrationCreateComments(),
 			migrationCreateArticleTags(),
 			migrationAddMissingConstraints(),
+			migrationCreateFavoritesAndFollows(),
 		},
 	)
 }

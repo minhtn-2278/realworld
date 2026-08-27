@@ -41,10 +41,14 @@ func NewCommentResponse(comment *models.Comment) CommentResponse {
 }
 
 func NewCommentListResponse(comments []models.Comment) CommentListResponse {
+	return CommentListResponse{Comments: newCommentResponses(comments)}
+}
+
+func newCommentResponses(comments []models.Comment) []CommentResponse {
 	items := make([]CommentResponse, 0, len(comments))
 	for index := range comments {
 		items = append(items, NewCommentResponse(&comments[index]))
 	}
 
-	return CommentListResponse{Comments: items}
+	return items
 }

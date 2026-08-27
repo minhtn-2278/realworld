@@ -9,7 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrInvalidCredentials = errors.New("invalid email or password")
+var (
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrCannotFollowSelf   = errors.New("cannot follow yourself")
+)
 
 type ValidationFieldError struct {
 	Field   string `json:"field"`
@@ -58,6 +61,9 @@ func APIError(statusCode int, message string) APIErrorResponse {
 }
 
 func ServiceError(err error) error {
+	if errors.Is(err, ErrCannotFollowSelf) {
+		return APIError(http.StatusBadRequest, err.Error())
+	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return APIError(http.StatusNotFound, "resource not found")
 	}

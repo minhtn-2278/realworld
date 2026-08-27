@@ -49,6 +49,8 @@ type UserService interface {
 	Login(ctx context.Context, input LoginUserInput) (*LoginUserResult, error)
 	GetByID(ctx context.Context, id uint) (*models.User, error)
 	GetProfile(ctx context.Context, username string) (*models.User, error)
+	GetProfileForUser(ctx context.Context, username string, viewerID uint) (*models.User, error)
+	Follow(ctx context.Context, username string, followerID uint, follow bool) error
 }
 
 type userService struct {
@@ -82,7 +84,74 @@ func (s *userService) Register(ctx context.Context, input RegisterUserInput) (*m
 }
 
 func (s *userService) GetProfile(ctx context.Context, username string) (*models.User, error) {
-	return s.userRepository.FindByUsername(ctx, username)
+	user, err := s.userRepository.FindByUsername(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.populateFollowersCount(ctx, user); err != nil {
+		return nil, err
+	}
+	if err := s.populateFollowingCount(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func (s *userService) GetProfileForUser(ctx context.Context, username string, viewerID uint) (*models.User, error) {
+	user, err := s.GetProfile(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+	following, err := s.userRepository.IsFollowing(ctx, viewerID, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	user.Following = following
+
+	return user, nil
+}
+
+func (s *userService) Follow(ctx context.Context, username string, followerID uint, follow bool) error {
+	user, err := s.userRepository.FindByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+	if follow && user.ID == followerID {
+		return utils.ErrCannotFollowSelf
+	}
+	if follow {
+		if err := s.userRepository.AddFollow(ctx, followerID, user.ID); err != nil {
+			return err
+		}
+	} else {
+		if err := s.userRepository.RemoveFollow(ctx, followerID, user.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *userService) populateFollowersCount(ctx context.Context, user *models.User) error {
+	count, err := s.userRepository.CountFollowers(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	user.FollowersCount = count
+	return nil
+}
+
+func (s *userService) populateFollowingCount(ctx context.Context, user *models.User) error {
+	count, err := s.userRepository.CountFollowing(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	user.FollowingCount = count
+	return nil
 }
 
 func (s *userService) GetByID(ctx context.Context, id uint) (*models.User, error) {

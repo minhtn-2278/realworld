@@ -38,7 +38,7 @@ func main() {
 	userRepository := repositories.NewUserRepository(db)
 
 	// Services
-	articleService := services.NewArticleService(articleRepository, commentRepository, tagRepository, userRepository, db)
+	articleService := services.NewArticleService(articleRepository, commentRepository, userRepository, db)
 	tagService := services.NewTagService(tagRepository)
 	userService := services.NewUserService(userRepository, cfg.JWTSecret)
 

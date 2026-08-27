@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 
@@ -46,23 +48,60 @@ func (h *ArticleHandler) Create(c *echo.Context) error {
 }
 
 func (h *ArticleHandler) List(c *echo.Context) error {
-	articles, err := h.articleService.List(c.Request().Context())
+	pagination, err := utils.ParsePagination(c)
+	if err != nil {
+		return err
+	}
+
+	tag := strings.TrimSpace(c.QueryParam("tag"))
+	author := strings.TrimSpace(c.QueryParam("author"))
+
+	articles, err := h.articleService.List(c.Request().Context(), services.ListArticlesInput{
+		Tag:        tag,
+		Author:     author,
+		Pagination: pagination,
+	})
 	if err != nil {
 		return utils.ServiceError(err)
 	}
 
-	return c.JSON(http.StatusOK, dto.NewArticleListResponse(articles))
+	return c.JSON(http.StatusOK, dto.NewArticleListResponse(
+		articles.Articles,
+		articles.FavoriteCounts,
+		pagination.Metadata(articles.Total),
+	))
 }
 
 func (h *ArticleHandler) GetBySlug(c *echo.Context) error {
-	article, err := h.articleService.GetBySlug(c.Request().Context(), c.Param("slug"))
+	detail, err := h.articleService.GetDetail(c.Request().Context(), c.Param("slug"))
 	if err != nil {
 		return utils.ServiceError(err)
 	}
 
-	return c.JSON(http.StatusOK, dto.ArticleResponseEnvelope{
-		Article: dto.NewArticleResponse(article),
+	return c.JSON(http.StatusOK, dto.ArticleDetailResponseEnvelope{
+		Article: dto.NewArticleDetailResponse(
+			detail.Article,
+			detail.Comments,
+			detail.FavoritesCount,
+		),
 	})
+}
+
+func (h *ArticleHandler) Favorite(c *echo.Context) error {
+	var request dto.FavoriteArticleRequest
+	if err := utils.BindAndValidate(c, &request); err != nil {
+		return err
+	}
+	userID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.articleService.Favorite(c.Request().Context(), c.Param("slug"), userID, *request.Favorite); err != nil {
+		return utils.ServiceError(err)
+	}
+
+	return c.JSON(http.StatusOK, dto.MessageResponse{Message: "ok"})
 }
 
 func (h *ArticleHandler) Update(c *echo.Context) error {
@@ -96,7 +135,12 @@ func (h *ArticleHandler) Update(c *echo.Context) error {
 }
 
 func (h *ArticleHandler) Delete(c *echo.Context) error {
-	if err := h.articleService.Delete(c.Request().Context(), c.Param("slug")); err != nil {
+	authorID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.articleService.Delete(c.Request().Context(), c.Param("slug"), authorID); err != nil {
 		return utils.ServiceError(err)
 	}
 
@@ -133,4 +177,30 @@ func (h *ArticleHandler) CreateComment(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, dto.NewCommentResponse(comment))
+}
+
+func (h *ArticleHandler) DeleteComment(c *echo.Context) error {
+	commentID, err := parseCommentID(c.Param("id"))
+	if err != nil {
+		return err
+	}
+	authorID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.articleService.DeleteComment(c.Request().Context(), c.Param("slug"), commentID, authorID); err != nil {
+		return utils.ServiceError(err)
+	}
+
+	return c.JSON(http.StatusOK, dto.MessageResponse{Message: "ok"})
+}
+
+func parseCommentID(value string) (uint, error) {
+	commentID, err := strconv.ParseUint(value, 10, 0)
+	if err != nil || commentID == 0 {
+		return 0, utils.APIError(http.StatusBadRequest, "comment id must be a positive integer")
+	}
+
+	return uint(commentID), nil
 }
