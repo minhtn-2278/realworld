@@ -11,6 +11,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"realworldapp/internal/cache"
 	"realworldapp/internal/models"
 	"realworldapp/internal/repositories"
 	"realworldapp/internal/utils"
@@ -56,12 +57,14 @@ type UserService interface {
 type userService struct {
 	userRepository repositories.UserRepository
 	jwtSecret      string
+	cache          cache.Store
 }
 
-func NewUserService(userRepository repositories.UserRepository, jwtSecret string) UserService {
+func NewUserService(userRepository repositories.UserRepository, jwtSecret string, cacheStore cache.Store) UserService {
 	return &userService{
 		userRepository: userRepository,
 		jwtSecret:      jwtSecret,
+		cache:          cacheStore,
 	}
 }
 
@@ -129,6 +132,10 @@ func (s *userService) Follow(ctx context.Context, username string, followerID ui
 		if err := s.userRepository.RemoveFollow(ctx, followerID, user.ID); err != nil {
 			return err
 		}
+	}
+
+	if err := s.cache.DeleteByPrefix(ctx, cache.FeedKeyPrefix(followerID)); err != nil {
+		return fmt.Errorf("invalidate article feed cache: %w", err)
 	}
 
 	return nil

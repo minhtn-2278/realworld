@@ -17,6 +17,7 @@ type UserRepository interface {
 	AddFollow(ctx context.Context, followerID uint, followingID uint) error
 	RemoveFollow(ctx context.Context, followerID uint, followingID uint) error
 	IsFollowing(ctx context.Context, followerID uint, followingID uint) (bool, error)
+	ListFollowerIDs(ctx context.Context, followingID uint) ([]uint, error)
 	CountFollowers(ctx context.Context, userID uint) (int64, error)
 	CountFollowing(ctx context.Context, userID uint) (int64, error)
 }
@@ -93,6 +94,18 @@ func (r *userRepository) IsFollowing(ctx context.Context, followerID uint, follo
 	}
 
 	return count > 0, nil
+}
+
+func (r *userRepository) ListFollowerIDs(ctx context.Context, followingID uint) ([]uint, error) {
+	var followerIDs []uint
+	if err := r.db.WithContext(ctx).
+		Model(&models.UserFollow{}).
+		Where("following_id = ?", followingID).
+		Pluck("follower_id", &followerIDs).Error; err != nil {
+		return nil, err
+	}
+
+	return followerIDs, nil
 }
 
 func (r *userRepository) CountFollowers(ctx context.Context, userID uint) (int64, error) {

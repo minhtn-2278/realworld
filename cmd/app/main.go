@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+
 	"github.com/labstack/echo-jwt/v5"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 
 	"realworldapp/config"
+	"realworldapp/internal/cache"
 	"realworldapp/internal/handlers"
 	appmiddleware "realworldapp/internal/middleware"
 	"realworldapp/internal/repositories"
@@ -24,6 +27,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	redisStore, err := cache.NewRedisStore(context.Background(), cfg.RedisURL)
+	if err != nil {
+		panic(err)
+	}
+	defer redisStore.Close()
 
 	e := echo.New()
 	e.HTTPErrorHandler = utils.HTTPErrorHandler
@@ -38,9 +46,9 @@ func main() {
 	userRepository := repositories.NewUserRepository(db)
 
 	// Services
-	articleService := services.NewArticleService(articleRepository, commentRepository, userRepository, db)
-	tagService := services.NewTagService(tagRepository)
-	userService := services.NewUserService(userRepository, cfg.JWTSecret)
+	articleService := services.NewArticleService(articleRepository, commentRepository, userRepository, db, redisStore)
+	tagService := services.NewTagService(tagRepository, redisStore)
+	userService := services.NewUserService(userRepository, cfg.JWTSecret, redisStore)
 
 	// Middleware
 	authMiddleware := echojwt.WithConfig(echojwt.Config{

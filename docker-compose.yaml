@@ -30,6 +30,20 @@ services:
       realworld-postgres:
         condition: service_healthy
 
+  realworld-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - realworld_network
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
 volumes:
   postgres_data:
 

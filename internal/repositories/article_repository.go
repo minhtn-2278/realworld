@@ -26,6 +26,7 @@ type ArticleRepository interface {
 type ArticleListFilter struct {
 	Tag        string
 	Author     string
+	FollowerID uint
 	Pagination utils.Pagination
 }
 
@@ -97,6 +98,15 @@ func applyArticleListFilters(query *gorm.DB, filter ArticleListFilter) *gorm.DB 
 	if filter.Author != "" {
 		query = query.Joins("JOIN users ON users.id = articles.author_id").
 			Where("users.username = ?", filter.Author)
+	}
+
+	if filter.FollowerID != 0 {
+		query = query.Where(`EXISTS (
+			SELECT 1
+			FROM user_follows
+			WHERE user_follows.follower_id = ?
+			  AND user_follows.following_id = articles.author_id
+		)`, filter.FollowerID)
 	}
 
 	return query

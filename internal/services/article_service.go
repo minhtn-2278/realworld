@@ -2,11 +2,14 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 	"unicode"
 
 	"gorm.io/gorm"
 
+	"realworldapp/internal/cache"
 	"realworldapp/internal/models"
 	"realworldapp/internal/repositories"
 	"realworldapp/internal/utils"
@@ -18,6 +21,7 @@ type ArticleService interface {
 	GetDetail(ctx context.Context, slug string) (*ArticleDetailResult, error)
 	Favorite(ctx context.Context, slug string, userID uint, favorite bool) error
 	List(ctx context.Context, input ListArticlesInput) (*ListArticlesResult, error)
+	ListFeed(ctx context.Context, userID uint, pagination utils.Pagination) (*ListArticlesResult, error)
 	Update(ctx context.Context, slug string, authorID uint, input UpdateArticleInput) (*models.Article, error)
 	Delete(ctx context.Context, slug string, authorID uint) error
 	ListComments(ctx context.Context, slug string) ([]models.Comment, error)
@@ -53,6 +57,8 @@ type ListArticlesResult struct {
 	Total          int64
 }
 
+const feedCacheTTL = time.Minute
+
 // ArticleDetailResult contains an article and viewer-specific detail data.
 type ArticleDetailResult struct {
 	Article        *models.Article
@@ -65,6 +71,7 @@ type articleService struct {
 	commentRepository repositories.CommentRepository
 	userRepository    repositories.UserRepository
 	db                *gorm.DB
+	cache             cache.Store
 }
 
 func NewArticleService(
@@ -72,24 +79,28 @@ func NewArticleService(
 	commentRepository repositories.CommentRepository,
 	userRepository repositories.UserRepository,
 	db *gorm.DB,
+	cacheStore cache.Store,
 ) ArticleService {
 	return &articleService{
 		articleRepository: articleRepository,
 		commentRepository: commentRepository,
 		userRepository:    userRepository,
 		db:                db,
+		cache:             cacheStore,
 	}
 }
 
 func (s *articleService) Create(ctx context.Context, input CreateArticleInput) (created *models.Article, err error) {
+	var hasNewTags bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		articleRepository := repositories.NewArticleRepository(tx)
 		tagRepository := repositories.NewTagRepository(tx)
 
-		tags, err := tagRepository.FindOrCreateByNames(ctx, input.TagList)
+		tags, newTagsCreated, err := tagRepository.FindOrCreateByNames(ctx, input.TagList)
 		if err != nil {
 			return err
 		}
+		hasNewTags = newTagsCreated
 
 		article := &models.Article{
 			Slug:        slugify(input.Title),
@@ -107,7 +118,19 @@ func (s *articleService) Create(ctx context.Context, input CreateArticleInput) (
 		return nil
 	})
 
-	return created, err
+	if err != nil {
+		return nil, err
+	}
+	if hasNewTags {
+		if err := s.cache.Delete(ctx, cache.TagsListKey); err != nil {
+			return nil, fmt.Errorf("invalidate tags cache: %w", err)
+		}
+	}
+	if err := s.invalidateFeedCacheForAuthor(ctx, input.AuthorID); err != nil {
+		return nil, err
+	}
+
+	return created, nil
 }
 
 func (s *articleService) GetBySlug(ctx context.Context, slug string) (*models.Article, error) {
@@ -152,15 +175,46 @@ func (s *articleService) Favorite(ctx context.Context, slug string, userID uint,
 		}
 	}
 
-	return nil
+	return s.invalidateFeedCacheForAuthor(ctx, article.AuthorID)
 }
 
 func (s *articleService) List(ctx context.Context, input ListArticlesInput) (*ListArticlesResult, error) {
-	articles, total, err := s.articleRepository.List(ctx, repositories.ArticleListFilter{
+	return s.list(ctx, repositories.ArticleListFilter{
 		Tag:        input.Tag,
 		Author:     input.Author,
 		Pagination: input.Pagination,
 	})
+}
+
+func (s *articleService) ListFeed(ctx context.Context, userID uint, pagination utils.Pagination) (*ListArticlesResult, error) {
+	pagination.Limit = utils.DefaultPaginationLimit
+
+	cacheKey := cache.FeedKey(userID, pagination.Limit, pagination.Page)
+	var cachedResult ListArticlesResult
+	found, err := s.cache.Get(ctx, cacheKey, &cachedResult)
+	if err != nil {
+		return nil, fmt.Errorf("get article feed cache: %w", err)
+	}
+	if found {
+		return &cachedResult, nil
+	}
+
+	result, err := s.list(ctx, repositories.ArticleListFilter{
+		FollowerID: userID,
+		Pagination: pagination,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.cache.Set(ctx, cacheKey, result, feedCacheTTL); err != nil {
+		return nil, fmt.Errorf("set article feed cache: %w", err)
+	}
+
+	return result, nil
+}
+
+func (s *articleService) list(ctx context.Context, filter repositories.ArticleListFilter) (*ListArticlesResult, error) {
+	articles, total, err := s.articleRepository.List(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +236,7 @@ func (s *articleService) List(ctx context.Context, input ListArticlesInput) (*Li
 }
 
 func (s *articleService) Update(ctx context.Context, slug string, authorID uint, input UpdateArticleInput) (updated *models.Article, err error) {
+	var hasNewTags bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		articleRepository := repositories.NewArticleRepository(tx)
 		tagRepository := repositories.NewTagRepository(tx)
@@ -197,10 +252,11 @@ func (s *articleService) Update(ctx context.Context, slug string, authorID uint,
 		}
 
 		if input.TagList != nil {
-			tags, err := tagRepository.FindOrCreateByNames(ctx, input.TagList)
+			tags, newTagsCreated, err := tagRepository.FindOrCreateByNames(ctx, input.TagList)
 			if err != nil {
 				return err
 			}
+			hasNewTags = newTagsCreated
 			if err := articleRepository.ReplaceTags(ctx, article, tags); err != nil {
 				return err
 			}
@@ -211,11 +267,42 @@ func (s *articleService) Update(ctx context.Context, slug string, authorID uint,
 		return nil
 	})
 
-	return updated, err
+	if err != nil {
+		return nil, err
+	}
+	if hasNewTags {
+		if err := s.cache.Delete(ctx, cache.TagsListKey); err != nil {
+			return nil, fmt.Errorf("invalidate tags cache: %w", err)
+		}
+	}
+	if err := s.invalidateFeedCacheForAuthor(ctx, authorID); err != nil {
+		return nil, err
+	}
+
+	return updated, nil
 }
 
 func (s *articleService) Delete(ctx context.Context, slug string, authorID uint) error {
-	return s.articleRepository.DeleteBySlug(ctx, slug, authorID)
+	if err := s.articleRepository.DeleteBySlug(ctx, slug, authorID); err != nil {
+		return err
+	}
+
+	return s.invalidateFeedCacheForAuthor(ctx, authorID)
+}
+
+func (s *articleService) invalidateFeedCacheForAuthor(ctx context.Context, authorID uint) error {
+	followerIDs, err := s.userRepository.ListFollowerIDs(ctx, authorID)
+	if err != nil {
+		return fmt.Errorf("list article author followers: %w", err)
+	}
+
+	for _, followerID := range followerIDs {
+		if err := s.cache.DeleteByPrefix(ctx, cache.FeedKeyPrefix(followerID)); err != nil {
+			return fmt.Errorf("invalidate article feed cache: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *articleService) ListComments(ctx context.Context, slug string) ([]models.Comment, error) {

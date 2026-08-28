@@ -12,7 +12,7 @@ import (
 
 type TagRepository interface {
 	List(ctx context.Context) ([]models.Tag, error)
-	FindOrCreateByNames(ctx context.Context, names []string) ([]models.Tag, error)
+	FindOrCreateByNames(ctx context.Context, names []string) ([]models.Tag, bool, error)
 }
 
 type tagRepository struct {
@@ -32,10 +32,10 @@ func (r *tagRepository) List(ctx context.Context) ([]models.Tag, error) {
 	return tags, nil
 }
 
-func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string) ([]models.Tag, error) {
+func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string) ([]models.Tag, bool, error) {
 	unique := normalizeTagNames(names)
 	if len(unique) == 0 {
-		return []models.Tag{}, nil
+		return []models.Tag{}, false, nil
 	}
 
 	toInsert := make([]models.Tag, 0, len(unique))
@@ -43,15 +43,16 @@ func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string)
 		toInsert = append(toInsert, models.Tag{Name: name})
 	}
 
-	if err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&toInsert).Error; err != nil {
-		return nil, err
+		Create(&toInsert)
+	if result.Error != nil {
+		return nil, false, result.Error
 	}
 
 	var found []models.Tag
 	if err := r.db.WithContext(ctx).Where("name IN ?", unique).Find(&found).Error; err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	byName := make(map[string]models.Tag, len(found))
@@ -65,7 +66,7 @@ func (r *tagRepository) FindOrCreateByNames(ctx context.Context, names []string)
 		}
 	}
 
-	return tags, nil
+	return tags, result.RowsAffected > 0, nil
 }
 
 func normalizeTagNames(names []string) []string {

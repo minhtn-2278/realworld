@@ -82,6 +82,7 @@ func registerArticleRoutes(
 	commentOwnerMiddleware echo.MiddlewareFunc,
 ) {
 	articles := api.Group("/articles")
+	articles.GET("/feed", handler.ListFeed, authMiddleware)
 	articles.GET("/:slug/comments", handler.ListComments)
 	articles.POST("/:slug/comments", handler.CreateComment, authMiddleware)
 	articles.DELETE("/:slug/comments/:id", handler.DeleteComment, commentOwnerMiddleware)

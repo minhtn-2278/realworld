@@ -72,6 +72,29 @@ func (h *ArticleHandler) List(c *echo.Context) error {
 	))
 }
 
+func (h *ArticleHandler) ListFeed(c *echo.Context) error {
+	pagination, err := utils.ParsePagination(c)
+	if err != nil {
+		return err
+	}
+	pagination.Limit = utils.DefaultPaginationLimit
+	userID, err := appmiddleware.CurrentUserID(c)
+	if err != nil {
+		return err
+	}
+
+	articles, err := h.articleService.ListFeed(c.Request().Context(), userID, pagination)
+	if err != nil {
+		return utils.ServiceError(err)
+	}
+
+	return c.JSON(http.StatusOK, dto.NewArticleListResponse(
+		articles.Articles,
+		articles.FavoriteCounts,
+		pagination.Metadata(articles.Total),
+	))
+}
+
 func (h *ArticleHandler) GetBySlug(c *echo.Context) error {
 	detail, err := h.articleService.GetDetail(c.Request().Context(), c.Param("slug"))
 	if err != nil {
