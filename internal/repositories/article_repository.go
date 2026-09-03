@@ -120,7 +120,9 @@ func (r *articleRepository) UpdateBySlug(ctx context.Context, slug string, autho
 		return nil, err
 	}
 
-	article.Slug = updates.Slug
+	if article.Title != updates.Title {
+		article.Slug = updates.Slug
+	}
 	article.Title = updates.Title
 	article.Description = updates.Description
 	article.Body = updates.Body

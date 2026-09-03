@@ -18,6 +18,13 @@ func NewTagHandler(tagService services.TagService) *TagHandler {
 	return &TagHandler{tagService: tagService}
 }
 
+// List lists all tags.
+// @Summary List tags
+// @Tags tags
+// @Produce json
+// @Success 200 {object} dto.TagListResponse
+// @Failure 500 {object} utils.APIErrorResponse
+// @Router /tags [get]
 func (h *TagHandler) List(c *echo.Context) error {
 	tags, err := h.tagService.List(c.Request().Context())
 	if err != nil {

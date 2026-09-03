@@ -7,13 +7,16 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v5"
 )
 
 var requestValidator = validator.New(validator.WithRequiredStructEnabled())
 
-func BindAndValidate(c *echo.Context, request any) error {
-	if err := c.Bind(request); err != nil {
+type RequestBinder interface {
+	Bind(any) error
+}
+
+func BindAndValidate(binder RequestBinder, request any) error {
+	if err := binder.Bind(request); err != nil {
 		return APIError(http.StatusBadRequest, "invalid request body")
 	}
 

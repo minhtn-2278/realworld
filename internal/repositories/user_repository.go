@@ -11,13 +11,12 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *models.User) error
-	FindByID(ctx context.Context, id uint) (*models.User, error)
+	FindByID(ctx context.Context, id uint, includeArticles bool) (*models.User, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
-	FindByUsername(ctx context.Context, username string) (*models.User, error)
+	FindByUsername(ctx context.Context, username string, includeArticles bool) (*models.User, error)
 	AddFollow(ctx context.Context, followerID uint, followingID uint) error
 	RemoveFollow(ctx context.Context, followerID uint, followingID uint) error
 	IsFollowing(ctx context.Context, followerID uint, followingID uint) (bool, error)
-	ListFollowerIDs(ctx context.Context, followingID uint) ([]uint, error)
 	CountFollowers(ctx context.Context, userID uint) (int64, error)
 	CountFollowing(ctx context.Context, userID uint) (int64, error)
 }
@@ -34,14 +33,10 @@ func (r *userRepository) Create(ctx context.Context, user *models.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *userRepository) FindByID(ctx context.Context, id uint) (*models.User, error) {
+func (r *userRepository) FindByID(ctx context.Context, id uint, includeArticles bool) (*models.User, error) {
 	var user models.User
-	if err := r.db.WithContext(ctx).
-		Preload("Articles", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, title, author_id").Order("created_at DESC")
-		}).
-		Where("id = ?", id).
-		First(&user).Error; err != nil {
+	query := r.withArticles(r.db.WithContext(ctx), includeArticles)
+	if err := query.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -57,18 +52,24 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*models
 	return &user, nil
 }
 
-func (r *userRepository) FindByUsername(ctx context.Context, username string) (*models.User, error) {
+func (r *userRepository) FindByUsername(ctx context.Context, username string, includeArticles bool) (*models.User, error) {
 	var user models.User
-	if err := r.db.WithContext(ctx).
-		Preload("Articles", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id, title, author_id").Order("created_at DESC")
-		}).
-		Where("username = ?", username).
-		First(&user).Error; err != nil {
+	query := r.withArticles(r.db.WithContext(ctx), includeArticles)
+	if err := query.Where("username = ?", username).First(&user).Error; err != nil {
 		return nil, err
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) withArticles(query *gorm.DB, includeArticles bool) *gorm.DB {
+	if !includeArticles {
+		return query
+	}
+
+	return query.Preload("Articles", func(db *gorm.DB) *gorm.DB {
+		return db.Select("id, title, author_id").Order("created_at DESC")
+	})
 }
 
 func (r *userRepository) AddFollow(ctx context.Context, followerID uint, followingID uint) error {
@@ -94,18 +95,6 @@ func (r *userRepository) IsFollowing(ctx context.Context, followerID uint, follo
 	}
 
 	return count > 0, nil
-}
-
-func (r *userRepository) ListFollowerIDs(ctx context.Context, followingID uint) ([]uint, error) {
-	var followerIDs []uint
-	if err := r.db.WithContext(ctx).
-		Model(&models.UserFollow{}).
-		Where("following_id = ?", followingID).
-		Pluck("follower_id", &followerIDs).Error; err != nil {
-		return nil, err
-	}
-
-	return followerIDs, nil
 }
 
 func (r *userRepository) CountFollowers(ctx context.Context, userID uint) (int64, error) {

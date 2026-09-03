@@ -19,7 +19,6 @@ type Store interface {
 	Get(ctx context.Context, key string, destination any) (bool, error)
 	Set(ctx context.Context, key string, value any, ttl time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
-	DeleteByPrefix(ctx context.Context, prefix string) error
 	Close() error
 }
 
@@ -80,31 +79,10 @@ func (s *RedisStore) Delete(ctx context.Context, keys ...string) error {
 	return nil
 }
 
-func (s *RedisStore) DeleteByPrefix(ctx context.Context, prefix string) error {
-	var cursor uint64
-	for {
-		keys, nextCursor, err := s.client.Scan(ctx, cursor, prefix+"*", 100).Result()
-		if err != nil {
-			return fmt.Errorf("scan cache keys with prefix %q: %w", prefix, err)
-		}
-		if err := s.Delete(ctx, keys...); err != nil {
-			return err
-		}
-		if nextCursor == 0 {
-			return nil
-		}
-		cursor = nextCursor
-	}
-}
-
 func (s *RedisStore) Close() error {
 	return s.client.Close()
 }
 
 func FeedKey(userID uint, limit int, page int) string {
 	return fmt.Sprintf("%s%d:limit:%d:page:%d", feedKeyRoot, userID, limit, page)
-}
-
-func FeedKeyPrefix(userID uint) string {
-	return fmt.Sprintf("%s%d:", feedKeyRoot, userID)
 }

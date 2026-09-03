@@ -2,7 +2,7 @@ package services
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"realworldapp/internal/cache"
@@ -29,9 +29,9 @@ func (s *tagService) List(ctx context.Context) ([]models.Tag, error) {
 	var tags []models.Tag
 	found, err := s.cache.Get(ctx, cache.TagsListKey, &tags)
 	if err != nil {
-		return nil, fmt.Errorf("get tags cache: %w", err)
+		slog.WarnContext(ctx, "read tags cache failed; using database result", "key", cache.TagsListKey, "error", err)
 	}
-	if found {
+	if err == nil && found {
 		return tags, nil
 	}
 
@@ -40,7 +40,7 @@ func (s *tagService) List(ctx context.Context) ([]models.Tag, error) {
 		return nil, err
 	}
 	if err := s.cache.Set(ctx, cache.TagsListKey, tags, tagsCacheTTL); err != nil {
-		return nil, fmt.Errorf("set tags cache: %w", err)
+		slog.WarnContext(ctx, "write tags cache failed", "key", cache.TagsListKey, "error", err)
 	}
 
 	return tags, nil

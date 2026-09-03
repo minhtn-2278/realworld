@@ -7,7 +7,7 @@ import (
 )
 
 type CreateCommentRequest struct {
-	Body string `json:"body" validate:"required"`
+	Body string `json:"body" validate:"required,max=2000"`
 }
 
 type CommentAuthorResponse struct {

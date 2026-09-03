@@ -11,7 +11,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"realworldapp/internal/cache"
 	"realworldapp/internal/models"
 	"realworldapp/internal/repositories"
 	"realworldapp/internal/utils"
@@ -57,14 +56,12 @@ type UserService interface {
 type userService struct {
 	userRepository repositories.UserRepository
 	jwtSecret      string
-	cache          cache.Store
 }
 
-func NewUserService(userRepository repositories.UserRepository, jwtSecret string, cacheStore cache.Store) UserService {
+func NewUserService(userRepository repositories.UserRepository, jwtSecret string) UserService {
 	return &userService{
 		userRepository: userRepository,
 		jwtSecret:      jwtSecret,
-		cache:          cacheStore,
 	}
 }
 
@@ -87,7 +84,7 @@ func (s *userService) Register(ctx context.Context, input RegisterUserInput) (*m
 }
 
 func (s *userService) GetProfile(ctx context.Context, username string) (*models.User, error) {
-	user, err := s.userRepository.FindByUsername(ctx, username)
+	user, err := s.userRepository.FindByUsername(ctx, username, true)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +114,7 @@ func (s *userService) GetProfileForUser(ctx context.Context, username string, vi
 }
 
 func (s *userService) Follow(ctx context.Context, username string, followerID uint, follow bool) error {
-	user, err := s.userRepository.FindByUsername(ctx, username)
+	user, err := s.userRepository.FindByUsername(ctx, username, false)
 	if err != nil {
 		return err
 	}
@@ -132,10 +129,6 @@ func (s *userService) Follow(ctx context.Context, username string, followerID ui
 		if err := s.userRepository.RemoveFollow(ctx, followerID, user.ID); err != nil {
 			return err
 		}
-	}
-
-	if err := s.cache.DeleteByPrefix(ctx, cache.FeedKeyPrefix(followerID)); err != nil {
-		return fmt.Errorf("invalidate article feed cache: %w", err)
 	}
 
 	return nil
@@ -162,7 +155,7 @@ func (s *userService) populateFollowingCount(ctx context.Context, user *models.U
 }
 
 func (s *userService) GetByID(ctx context.Context, id uint) (*models.User, error) {
-	return s.userRepository.FindByID(ctx, id)
+	return s.userRepository.FindByID(ctx, id, false)
 }
 
 func (s *userService) Login(ctx context.Context, input LoginUserInput) (*LoginUserResult, error) {
@@ -170,11 +163,14 @@ func (s *userService) Login(ctx context.Context, input LoginUserInput) (*LoginUs
 		return nil, utils.ErrInvalidCredentials
 	}
 
-	user, err := s.userRepository.FindByUsername(ctx, input.Username)
+	user, err := s.userRepository.FindByUsername(ctx, input.Username, false)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		user, err = s.userRepository.FindByEmail(ctx, input.Username)
 	}
 	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("find user for login: %w", err)
+		}
 		return nil, utils.ErrInvalidCredentials
 	}
 

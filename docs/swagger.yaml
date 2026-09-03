@@ -1,0 +1,907 @@
+basePath: /api
+definitions:
+  dto.ArticleDetailResponse:
+    properties:
+      body:
+        type: string
+      comments:
+        items:
+          $ref: '#/definitions/dto.CommentResponse'
+        type: array
+      createdAt:
+        type: string
+      description:
+        type: string
+      favoritesCount:
+        type: integer
+      id:
+        type: integer
+      slug:
+        type: string
+      tagList:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  dto.ArticleDetailResponseEnvelope:
+    properties:
+      article:
+        $ref: '#/definitions/dto.ArticleDetailResponse'
+    type: object
+  dto.ArticleListItemResponse:
+    properties:
+      body:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      favoritesCount:
+        type: integer
+      id:
+        type: integer
+      slug:
+        type: string
+      tagList:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  dto.ArticleListResponse:
+    properties:
+      articles:
+        items:
+          $ref: '#/definitions/dto.ArticleListItemResponse'
+        type: array
+      meta:
+        $ref: '#/definitions/utils.PaginationMeta'
+    type: object
+  dto.ArticleResponse:
+    properties:
+      body:
+        type: string
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      slug:
+        type: string
+      tagList:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  dto.ArticleResponseEnvelope:
+    properties:
+      article:
+        $ref: '#/definitions/dto.ArticleResponse'
+    type: object
+  dto.CommentAuthorResponse:
+    properties:
+      authorId:
+        type: integer
+      username:
+        type: string
+    type: object
+  dto.CommentListResponse:
+    properties:
+      comments:
+        items:
+          $ref: '#/definitions/dto.CommentResponse'
+        type: array
+    type: object
+  dto.CommentResponse:
+    properties:
+      author:
+        $ref: '#/definitions/dto.CommentAuthorResponse'
+      body:
+        type: string
+      createdAt:
+        type: string
+      id:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  dto.CreateArticleRequest:
+    properties:
+      body:
+        maxLength: 2000
+        type: string
+      description:
+        maxLength: 300
+        type: string
+      tagList:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        type: string
+    required:
+    - body
+    - description
+    - title
+    type: object
+  dto.CreateCommentRequest:
+    properties:
+      body:
+        maxLength: 2000
+        type: string
+    required:
+    - body
+    type: object
+  dto.CurrentUserResponse:
+    properties:
+      articles:
+        items:
+          $ref: '#/definitions/dto.UserArticleResponse'
+        type: array
+      bio:
+        type: string
+      email:
+        type: string
+      followersCount:
+        type: integer
+      followingCount:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.FavoriteArticleRequest:
+    properties:
+      favorite:
+        type: boolean
+    required:
+    - favorite
+    type: object
+  dto.FollowUserRequest:
+    properties:
+      follow:
+        type: boolean
+    required:
+    - follow
+    type: object
+  dto.LoginUserRequest:
+    properties:
+      password:
+        maxLength: 100
+        type: string
+      username:
+        maxLength: 255
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  dto.LoginUserResponse:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  dto.MessageResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  dto.RegisterUserRequest:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      password:
+        maxLength: 100
+        type: string
+      username:
+        maxLength: 50
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  dto.RegisterUserResponse:
+    properties:
+      bio:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.TagListResponse:
+    properties:
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  dto.UpdateArticleRequest:
+    properties:
+      body:
+        maxLength: 2000
+        type: string
+      description:
+        maxLength: 300
+        type: string
+      tagList:
+        items:
+          type: string
+        type: array
+      title:
+        maxLength: 255
+        type: string
+    required:
+    - body
+    - description
+    - title
+    type: object
+  dto.UserArticleResponse:
+    properties:
+      article_id:
+        type: integer
+      title:
+        type: string
+    type: object
+  dto.UserResponse:
+    properties:
+      articles:
+        items:
+          $ref: '#/definitions/dto.UserArticleResponse'
+        type: array
+      bio:
+        type: string
+      email:
+        type: string
+      followersCount:
+        type: integer
+      following:
+        type: boolean
+      followingCount:
+        type: integer
+      id:
+        type: integer
+      image:
+        type: string
+      username:
+        type: string
+    type: object
+  utils.APIErrorResponse:
+    properties:
+      errorCode:
+        type: integer
+      errorMessage:
+        type: string
+    type: object
+  utils.PaginationMeta:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      totalPages:
+        type: integer
+    type: object
+  utils.ValidationError:
+    properties:
+      errorCode:
+        type: integer
+      errorMessage:
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/utils.ValidationFieldError'
+        type: array
+    type: object
+  utils.ValidationFieldError:
+    properties:
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: REST API for the Realworld application.
+  title: Realworld API
+  version: "1.0"
+paths:
+  /articles:
+    get:
+      parameters:
+      - description: Tag name
+        in: query
+        name: tag
+        type: string
+      - description: Author username
+        in: query
+        name: author
+        type: string
+      - default: 10
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ArticleListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: List articles
+      tags:
+      - articles
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Article payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateArticleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ArticleResponseEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an article
+      tags:
+      - articles
+  /articles/{slug}:
+    delete:
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an article
+      tags:
+      - articles
+    get:
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ArticleDetailResponseEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: Get an article by slug
+      tags:
+      - articles
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Article payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateArticleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ArticleResponseEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update an article
+      tags:
+      - articles
+  /articles/{slug}/comments:
+    get:
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CommentListResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: List article comments
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Comment payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create an article comment
+      tags:
+      - comments
+  /articles/{slug}/comments/{id}:
+    delete:
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Comment ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete an article comment
+      tags:
+      - comments
+  /articles/{slug}/favorite:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Article slug
+        in: path
+        name: slug
+        required: true
+        type: string
+      - description: Favorite payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.FavoriteArticleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Favorite or unfavorite an article
+      tags:
+      - articles
+  /articles/feed:
+    get:
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ArticleListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the authenticated user's feed
+      tags:
+      - articles
+  /profiles/{username}:
+    get:
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a user profile
+      tags:
+      - profiles
+  /profiles/{username}/follow:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Username
+        in: path
+        name: username
+        required: true
+        type: string
+      - description: Follow payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.FollowUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Follow or unfollow a user
+      tags:
+      - profiles
+  /tags:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TagListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: List tags
+      tags:
+      - tags
+  /user:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CurrentUserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the current user
+      tags:
+      - users
+  /users:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.RegisterUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: Register a user
+      tags:
+      - users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginUserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ValidationError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.APIErrorResponse'
+      summary: Log in
+      tags:
+      - users
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Enter `Bearer {access token}`.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

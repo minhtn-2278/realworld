@@ -6,17 +6,27 @@ import (
 	"github.com/labstack/echo-jwt/v5"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger/v2"
 
 	"realworldapp/config"
+	_ "realworldapp/docs"
 	"realworldapp/internal/cache"
 	"realworldapp/internal/handlers"
 	appmiddleware "realworldapp/internal/middleware"
 	"realworldapp/internal/repositories"
 	"realworldapp/internal/services"
-	"realworldapp/internal/utils"
 	database "realworldapp/pkg/db"
 )
 
+// @title Realworld API
+// @version 1.0
+// @description REST API for the Realworld application.
+// @BasePath /api
+// @schemes http https
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter `Bearer {access token}`.
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -34,10 +44,11 @@ func main() {
 	defer redisStore.Close()
 
 	e := echo.New()
-	e.HTTPErrorHandler = utils.HTTPErrorHandler
+	e.HTTPErrorHandler = handlers.HTTPErrorHandler
 
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	// Repositories
 	articleRepository := repositories.NewArticleRepository(db)
@@ -48,7 +59,7 @@ func main() {
 	// Services
 	articleService := services.NewArticleService(articleRepository, commentRepository, userRepository, db, redisStore)
 	tagService := services.NewTagService(tagRepository, redisStore)
-	userService := services.NewUserService(userRepository, cfg.JWTSecret, redisStore)
+	userService := services.NewUserService(userRepository, cfg.JWTSecret)
 
 	// Middleware
 	authMiddleware := echojwt.WithConfig(echojwt.Config{

@@ -3,8 +3,6 @@ package utils
 import (
 	"net/http"
 	"strconv"
-
-	"github.com/labstack/echo/v5"
 )
 
 const (
@@ -25,13 +23,17 @@ type PaginationMeta struct {
 	TotalPages int64 `json:"totalPages"`
 }
 
-func ParsePagination(c *echo.Context) (Pagination, error) {
+type QueryParamReader interface {
+	QueryParam(name string) string
+}
+
+func ParsePagination(queryParams QueryParamReader) (Pagination, error) {
 	pagination := Pagination{
 		Limit: DefaultPaginationLimit,
 		Page:  DefaultPaginationPage,
 	}
 
-	if value := c.QueryParam("limit"); value != "" {
+	if value := queryParams.QueryParam("limit"); value != "" {
 		limit, err := strconv.Atoi(value)
 		if err != nil || limit < 1 || limit > MaxPaginationLimit {
 			return Pagination{}, APIError(http.StatusBadRequest, "limit must be between 1 and 100")
@@ -39,7 +41,7 @@ func ParsePagination(c *echo.Context) (Pagination, error) {
 		pagination.Limit = limit
 	}
 
-	if value := c.QueryParam("page"); value != "" {
+	if value := queryParams.QueryParam("page"); value != "" {
 		page, err := strconv.Atoi(value)
 		if err != nil || page < 1 {
 			return Pagination{}, APIError(http.StatusBadRequest, "page must be a positive integer")

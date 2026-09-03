@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode"
@@ -57,9 +60,8 @@ type ListArticlesResult struct {
 	Total          int64
 }
 
-const feedCacheTTL = time.Minute
+const feedCacheTTL = 5 * time.Minute
 
-// ArticleDetailResult contains an article and viewer-specific detail data.
 type ArticleDetailResult struct {
 	Article        *models.Article
 	Comments       []models.Comment
@@ -91,6 +93,11 @@ func NewArticleService(
 }
 
 func (s *articleService) Create(ctx context.Context, input CreateArticleInput) (created *models.Article, err error) {
+	slug, err := newArticleSlug(input.Title)
+	if err != nil {
+		return nil, fmt.Errorf("generate article slug: %w", err)
+	}
+
 	var hasNewTags bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		articleRepository := repositories.NewArticleRepository(tx)
@@ -103,7 +110,7 @@ func (s *articleService) Create(ctx context.Context, input CreateArticleInput) (
 		hasNewTags = newTagsCreated
 
 		article := &models.Article{
-			Slug:        slugify(input.Title),
+			Slug:        slug,
 			Title:       input.Title,
 			Description: input.Description,
 			Body:        input.Body,
@@ -123,13 +130,9 @@ func (s *articleService) Create(ctx context.Context, input CreateArticleInput) (
 	}
 	if hasNewTags {
 		if err := s.cache.Delete(ctx, cache.TagsListKey); err != nil {
-			return nil, fmt.Errorf("invalidate tags cache: %w", err)
+			slog.WarnContext(ctx, "invalidate tags cache failed", "key", cache.TagsListKey, "error", err)
 		}
 	}
-	if err := s.invalidateFeedCacheForAuthor(ctx, input.AuthorID); err != nil {
-		return nil, err
-	}
-
 	return created, nil
 }
 
@@ -175,7 +178,7 @@ func (s *articleService) Favorite(ctx context.Context, slug string, userID uint,
 		}
 	}
 
-	return s.invalidateFeedCacheForAuthor(ctx, article.AuthorID)
+	return nil
 }
 
 func (s *articleService) List(ctx context.Context, input ListArticlesInput) (*ListArticlesResult, error) {
@@ -193,9 +196,9 @@ func (s *articleService) ListFeed(ctx context.Context, userID uint, pagination u
 	var cachedResult ListArticlesResult
 	found, err := s.cache.Get(ctx, cacheKey, &cachedResult)
 	if err != nil {
-		return nil, fmt.Errorf("get article feed cache: %w", err)
+		slog.WarnContext(ctx, "read article feed cache failed; using database result", "key", cacheKey, "error", err)
 	}
-	if found {
+	if err == nil && found {
 		return &cachedResult, nil
 	}
 
@@ -207,7 +210,7 @@ func (s *articleService) ListFeed(ctx context.Context, userID uint, pagination u
 		return nil, err
 	}
 	if err := s.cache.Set(ctx, cacheKey, result, feedCacheTTL); err != nil {
-		return nil, fmt.Errorf("set article feed cache: %w", err)
+		slog.WarnContext(ctx, "write article feed cache failed", "key", cacheKey, "error", err)
 	}
 
 	return result, nil
@@ -236,13 +239,18 @@ func (s *articleService) list(ctx context.Context, filter repositories.ArticleLi
 }
 
 func (s *articleService) Update(ctx context.Context, slug string, authorID uint, input UpdateArticleInput) (updated *models.Article, err error) {
+	updatedSlug, err := newArticleSlug(input.Title)
+	if err != nil {
+		return nil, fmt.Errorf("generate article slug: %w", err)
+	}
+
 	var hasNewTags bool
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		articleRepository := repositories.NewArticleRepository(tx)
 		tagRepository := repositories.NewTagRepository(tx)
 
 		article, err := articleRepository.UpdateBySlug(ctx, slug, authorID, &models.Article{
-			Slug:        slugify(input.Title),
+			Slug:        updatedSlug,
 			Title:       input.Title,
 			Description: input.Description,
 			Body:        input.Body,
@@ -272,34 +280,15 @@ func (s *articleService) Update(ctx context.Context, slug string, authorID uint,
 	}
 	if hasNewTags {
 		if err := s.cache.Delete(ctx, cache.TagsListKey); err != nil {
-			return nil, fmt.Errorf("invalidate tags cache: %w", err)
+			slog.WarnContext(ctx, "invalidate tags cache failed", "key", cache.TagsListKey, "error", err)
 		}
 	}
-	if err := s.invalidateFeedCacheForAuthor(ctx, authorID); err != nil {
-		return nil, err
-	}
-
 	return updated, nil
 }
 
 func (s *articleService) Delete(ctx context.Context, slug string, authorID uint) error {
 	if err := s.articleRepository.DeleteBySlug(ctx, slug, authorID); err != nil {
 		return err
-	}
-
-	return s.invalidateFeedCacheForAuthor(ctx, authorID)
-}
-
-func (s *articleService) invalidateFeedCacheForAuthor(ctx context.Context, authorID uint) error {
-	followerIDs, err := s.userRepository.ListFollowerIDs(ctx, authorID)
-	if err != nil {
-		return fmt.Errorf("list article author followers: %w", err)
-	}
-
-	for _, followerID := range followerIDs {
-		if err := s.cache.DeleteByPrefix(ctx, cache.FeedKeyPrefix(followerID)); err != nil {
-			return fmt.Errorf("invalidate article feed cache: %w", err)
-		}
 	}
 
 	return nil
@@ -320,7 +309,7 @@ func (s *articleService) CreateComment(ctx context.Context, slug string, body st
 		return nil, err
 	}
 
-	author, err := s.userRepository.FindByID(ctx, authorID)
+	author, err := s.userRepository.FindByID(ctx, authorID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -378,4 +367,19 @@ func slugify(value string) string {
 	}
 
 	return strings.Trim(builder.String(), "-")
+}
+
+func newArticleSlug(title string) (string, error) {
+	randomSuffix := make([]byte, 4)
+	if _, err := rand.Read(randomSuffix); err != nil {
+		return "", fmt.Errorf("read random slug suffix: %w", err)
+	}
+
+	baseSlug := slugify(title)
+	suffix := hex.EncodeToString(randomSuffix)
+	if baseSlug == "" {
+		return suffix, nil
+	}
+
+	return baseSlug + "-" + suffix, nil
 }

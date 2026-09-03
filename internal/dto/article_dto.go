@@ -9,15 +9,15 @@ import (
 
 type CreateArticleRequest struct {
 	Title       string   `json:"title" validate:"required,max=255"`
-	Description string   `json:"description" validate:"required"`
-	Body        string   `json:"body" validate:"required"`
+	Description string   `json:"description" validate:"required,max=300"`
+	Body        string   `json:"body" validate:"required,max=2000"`
 	TagList     []string `json:"tagList,omitempty" validate:"dive,max=100"`
 }
 
 type UpdateArticleRequest struct {
 	Title       string   `json:"title" validate:"required,max=255"`
-	Description string   `json:"description" validate:"required"`
-	Body        string   `json:"body" validate:"required"`
+	Description string   `json:"description" validate:"required,max=300"`
+	Body        string   `json:"body" validate:"required,max=2000"`
 	TagList     []string `json:"tagList,omitempty" validate:"dive,max=100"`
 }
 

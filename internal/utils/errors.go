@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
 
@@ -68,35 +68,10 @@ func ServiceError(err error) error {
 		return APIError(http.StatusNotFound, "resource not found")
 	}
 
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return APIError(http.StatusConflict, "resource already exists")
+	}
+
 	return APIError(http.StatusInternalServerError, "internal server error")
-}
-
-func HTTPErrorHandler(c *echo.Context, err error) {
-	if response, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil && response.Committed {
-		return
-	}
-
-	statusCode := http.StatusInternalServerError
-	var statusCoder echo.HTTPStatusCoder
-	if errors.As(err, &statusCoder) && statusCoder.StatusCode() != 0 {
-		statusCode = statusCoder.StatusCode()
-	}
-
-	var marshaler json.Marshaler
-	if errors.As(err, &marshaler) {
-		if writeErr := c.JSON(statusCode, marshaler); writeErr != nil {
-			c.Logger().Error("failed to write API error response", "error", writeErr)
-		}
-		return
-	}
-
-	message := http.StatusText(statusCode)
-	var httpError *echo.HTTPError
-	if errors.As(err, &httpError) && httpError.Message != "" {
-		message = httpError.Message
-	}
-
-	if writeErr := c.JSON(statusCode, APIError(statusCode, message)); writeErr != nil {
-		c.Logger().Error("failed to write API error response", "error", writeErr)
-	}
 }
